@@ -1,7 +1,9 @@
-# https://github.com/microsoft/vscode-dev-containers/blob/main/containers/python-3/README.md
-ARG VARIANT=3.13-bookworm
-FROM mcr.microsoft.com/vscode/devcontainers/python:${VARIANT}
-COPY requirements.txt /tmp/pip-tmp/
-RUN python3 -m pip install --upgrade pip \
-  && python3 -m pip install --no-cache-dir -r /tmp/pip-tmp/requirements.txt \
-  && pipx install pre-commit ruff
+# https://github.com/devcontainers/images/tree/main/src/python
+# Mirrors the image used by devcontainer.json. Dependencies live in
+# pyproject.toml/uv.lock (there is no requirements.txt), so contributors
+# install them with `uv sync` inside the container.
+ARG VARIANT=latest
+FROM mcr.microsoft.com/devcontainers/python:${VARIANT}
+RUN pipx install pre-commit \
+  && pipx install ruff \
+  && pipx install uv
