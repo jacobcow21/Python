@@ -2,6 +2,8 @@ name: Test DevContainer Build
 
 on:
   push:
+    branches:
+      - master
     paths:
       - ".devcontainer/**"
       - ".github/workflows/devcontainer_ci.yml"
@@ -9,15 +11,51 @@ on:
     paths:
       - ".devcontainer/**"
       - ".github/workflows/devcontainer_ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  dockerfile:
+    name: Build .devcontainer/Dockerfile
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Build the image
+        run: docker build --tag devcontainer-dockerfile .devcontainer
+      - name: Check the tools are installed
+        run: |
+          docker run --rm devcontainer-dockerfile bash -lc '
+            set -e
+            python3 --version
+            pre-commit --version
+            ruff --version
+            uv --version
+          '
+
+  devcontainer:
+    name: Build devcontainer and run post_install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Builds the container from devcontainer.json, runs postCreateCommand
+      # (which runs .devcontainer/post_install), then runs runCmd inside it.
       - uses: devcontainers/ci@v0.3
         with:
           push: never
-          runCmd: "true"
+          runCmd: |
+            set -e
+            pre-commit --version
+            ruff --version
+            uv --version
+            test -f .git/hooks/pre-commit
+            ZSH_PLUGINS="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
+            test -d "$ZSH_PLUGINS/zsh-autosuggestions"
+            test -d "$ZSH_PLUGINS/zsh-syntax-highlighting"
+            grep -q '^plugins=(git zsh-autosuggestions zsh-syntax-highlighting)' ~/.zshrc
+            echo "Devcontainer initialization verified."
